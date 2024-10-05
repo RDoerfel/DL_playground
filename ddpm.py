@@ -203,6 +203,8 @@ def sample(model_path, run_name, device, image_size, n_samples=16, t_sample_time
     model = LightweightUNet().to(device)
 
     # 3. load model state
+    model_path = Path(model_path)
+
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
 
@@ -210,7 +212,9 @@ def sample(model_path, run_name, device, image_size, n_samples=16, t_sample_time
     sampled_images = diffusion.sample(model, n=n_samples, t_sample_times=t_sample_times)
 
     # 5. save generated samples
-    save_images(sampled_images[0], os.path.join("results", run_name, "sampled_images.png"))
+    sampled_digits = [sampled_images_diffusion[0] for sampled_images_diffusion in sampled_images]
+    save_images(sampled_digits, os.path.join("results", run_name, f"diffusion_steps.png"))
+    save_images(sampled_images[0], os.path.join("results", run_name, f"sampled_images.png"))
 
 
 def launch():
@@ -218,7 +222,7 @@ def launch():
 
     # Example usage:
     # python ddpm.py --run_name "ddpm_run" --device "cpu" --image_size 28 train --epochs 1 --lr 0.001 --batch_size 1 --dataset_path "data"
-    # python ddpm.py --run_name "ddpm_run" --device "cpu" --image_size 28 sample --model_path "models/ddpm_run/model_1.pt" --n_samples 16
+    # python ddpm.py --run_name "ddpm_run" --device "cpu" --image_size 28 sample --model_path "./models/ddpm_run/model_0.pt" --n_samples 16
 
     parser = argparse.ArgumentParser(description="DDPM CLI")
     subparsers = parser.add_subparsers(dest="command", help="Sub-commands: train or sample")
@@ -239,7 +243,9 @@ def launch():
     sample_parser = subparsers.add_parser("sample", help="Sample from the trained model")
     sample_parser.add_argument("--model_path", type=str, required=True, help="Path to the trained model")
     sample_parser.add_argument("--n_samples", type=int, default=16, help="Number of samples to generate")
-    sample_parser.add_argument("--t_sample_times", type=int, default=None, help="Number of time steps for sampling")
+    sample_parser.add_argument(
+        "--t_sample_times", type=int, nargs="+", default=None, help="List of time steps for sampling"
+    )
 
     args = parser.parse_args()
 
@@ -247,12 +253,27 @@ def launch():
         print(
             f"Running training with following args: {args.run_name} , {args.device}, {args.epochs}, {args.lr}, {args.batch_size}, {args.image_size}, {args.dataset_path}"
         )
-        train(args.run_name, args.device, args.epochs, args.lr, args.batch_size, args.image_size, args.dataset_path)
+        train(
+            run_name=args.run_name,
+            device=args.device,
+            epochs=args.epochs,
+            lr=args.lr,
+            batch_size=args.batch_size,
+            image_size=args.image_size,
+            dataset_path=args.dataset_path,
+        )
     elif args.command == "sample":
         print(
             f"Running sampling with following args: {args.run_name} , {args.device}, {args.model_path}, {args.n_samples}, {args.t_sample_times}"
         )
-        sample(args.run_name, args.device, args.model_path, args.n_samples, args.t_sample_times)
+        sample(
+            image_size=args.image_size,
+            run_name=args.run_name,
+            device=args.device,
+            model_path=args.model_path,
+            n_samples=args.n_samples,
+            t_sample_times=args.t_sample_times,
+        )
 
 
 if __name__ == "__main__":
