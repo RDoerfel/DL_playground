@@ -20,9 +20,8 @@ from torch.utils.tensorboard import SummaryWriter
 # %% Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S")
 
+
 # %% Build diffusion related functions
-
-
 class Diffusion:
     def __init__(self, noise_steps=1000, beta_start=1e-4, beta_end=0.02, img_size=64, device="cpu"):
         self.noise_steps = noise_steps
