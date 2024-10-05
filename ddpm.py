@@ -1,6 +1,7 @@
 # %%
 # Implementation of the denoising diffusion probabilistic model (DDPM) in PyTorch.
 import os
+from pathlib import Path
 import torch
 from torch import optim
 from tqdm import tqdm
@@ -183,34 +184,79 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
             pbar.set_postfix({"Loss": loss.item()})
             logger.add_scalar("Loss", loss.item(), epoch * length + i)
 
+        # save model
+        torch.save(model.state_dict(), os.path.join("models", run_name, f"model_{epoch}.pt"))
+
         # sample some images and log them
         sampled_images = diffusion.sample(model, n=16, t_sample_times=[1, 50, 100, 150, 200, 600, 800, 999])
         sampled_digits = [sampled_images_diffusion[0] for sampled_images_diffusion in sampled_images]
         save_images(sampled_digits, os.path.join("results", run_name, f"diffusion_steps_{epoch}.png"))
-        save_images(sampled_images[7], os.path.join("results", run_name, f"sampled_images_{epoch}.png"))
+        save_images(sampled_images[0], os.path.join("results", run_name, f"sampled_images_{epoch}.png"))
 
-        torch.save(model.state_dict(), os.path.join("models", run_name, f"model_{epoch}.pt"))
+
+def sample(model_path, run_name, device, image_size, n_samples=16, t_sample_times=None):
+    # function to sample from a trained model
+    # 1. initialize diffusion model
+    diffusion = Diffusion(img_size=image_size, device=device)  # Assuming image size is 28 for MNIST
+
+    # 2. initialize model
+    model = LightweightUNet().to(device)
+
+    # 3. load model state
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()
+
+    # 4. generate samples
+    sampled_images = diffusion.sample(model, n=n_samples, t_sample_times=t_sample_times)
+
+    # 5. save generated samples
+    save_images(sampled_images[0], os.path.join("results", run_name, "sampled_images.png"))
 
 
 def launch():
     import argparse
 
-    parser = argparse.ArgumentParser(description="DDPM Training")
+    # Example usage:
+    # python ddpm.py --run_name "ddpm_run" --device "cpu" --image_size 28 train --epochs 1 --lr 0.001 --batch_size 1 --dataset_path "data"
+    # python ddpm.py --run_name "ddpm_run" --device "cpu" --image_size 28 sample --model_path "models/ddpm_run/model_1.pt" --n_samples 16
+
+    parser = argparse.ArgumentParser(description="DDPM CLI")
+    subparsers = parser.add_subparsers(dest="command", help="Sub-commands: train or sample")
+
+    # Common arguments
     parser.add_argument("--run_name", type=str, default="ddpm_run", help="Name of the run")
-    parser.add_argument("--device", type=str, default="cpu", help="Device to train on")
-    parser.add_argument("--epochs", type=int, default=1, help="Number of epochs to train")
-    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
-    parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
+    parser.add_argument("--device", type=str, default="cpu", help="Device to use")
     parser.add_argument("--image_size", type=int, default=28, help="Image size")
-    parser.add_argument("--dataset_path", type=str, default="data", help="Path to dataset")
+
+    # Subparser for training
+    train_parser = subparsers.add_parser("train", help="Train the model")
+    train_parser.add_argument("--epochs", type=int, default=1, help="Number of epochs to train")
+    train_parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+    train_parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
+    train_parser.add_argument("--dataset_path", type=str, default="data", help="Path to dataset")
+
+    # Subparser for sampling
+    sample_parser = subparsers.add_parser("sample", help="Sample from the trained model")
+    sample_parser.add_argument("--model_path", type=str, required=True, help="Path to the trained model")
+    sample_parser.add_argument("--n_samples", type=int, default=16, help="Number of samples to generate")
+    sample_parser.add_argument("--t_sample_times", type=int, default=None, help="Number of time steps for sampling")
+
     args = parser.parse_args()
 
-    print(
-        f"Running with following args: {args.run_name} , {args.device}, {args.epochs}, {args.lr}, {args.batch_size}, {args.image_size}, {args.dataset_path}"
-    )
-    train(args.run_name, args.device, args.epochs, args.lr, args.batch_size, args.image_size, args.dataset_path)
+    if args.command == "train":
+        print(
+            f"Running training with following args: {args.run_name} , {args.device}, {args.epochs}, {args.lr}, {args.batch_size}, {args.image_size}, {args.dataset_path}"
+        )
+        train(args.run_name, args.device, args.epochs, args.lr, args.batch_size, args.image_size, args.dataset_path)
+    elif args.command == "sample":
+        print(
+            f"Running sampling with following args: {args.run_name} , {args.device}, {args.model_path}, {args.n_samples}, {args.t_sample_times}"
+        )
+        sample(args.run_name, args.device, args.model_path, args.n_samples, args.t_sample_times)
 
 
 if __name__ == "__main__":
     torch.cuda.empty_cache()
     launch()
+
+# %%
