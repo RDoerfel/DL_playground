@@ -1,0 +1,12 @@
+# python related directories and files
+__pycache__/
+.venv/
+
+# poetry related directories and files
+poetry.lock
+
+# project related directories and files
+data/
+models/
+results/
+runs/

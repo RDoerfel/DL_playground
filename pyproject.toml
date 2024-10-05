@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "ddpm"
+version = "0.1.0"
+description = "Playground for Diffusion models"
+authors = ["RDoerfel <doerfelruben@aol.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "^2.4.1"
+torchvision = "^0.19.1"
+torchaudio = "^2.4.1"
+ipykernel = "^6.29.5"
+tqdm = "^4.66.5"
+numpy = "^2.1.1"
+scipy = "^1.14.1"
+matplotlib = "^3.9.2"
+tensorboard = "^2.17.1"
+torch-ema = "^0.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
