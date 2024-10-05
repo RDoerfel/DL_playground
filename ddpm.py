@@ -201,7 +201,7 @@ def launch():
     parser.add_argument("--epochs", type=int, default=1, help="Number of epochs to train")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
-    parser.add_argument("--image_size", type=int, default=1, help="Image size")
+    parser.add_argument("--image_size", type=int, default=28, help="Image size")
     parser.add_argument("--dataset_path", type=str, default="data", help="Path to dataset")
     args = parser.parse_args()
 
