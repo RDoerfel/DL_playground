@@ -29,17 +29,17 @@ class Diffusion:
         self.img_size = img_size
 
         # set coefficients for noise schedule
-        self.beta = self.prepare_noise_schedule().to(
+        self.beta = self._prepare_noise_schedule().to(
             device
         )  # forward process variances (here we use a linear schedule)
         self.alpha = 1 - self.beta
         self.alpha_bar = torch.cumprod(self.alpha, dim=0)
 
-    def prepare_noise_schedule(self):
+    def _prepare_noise_schedule(self):
         # linear schedule for beta
         return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
 
-    def sample_q(self, x, t):
+    def _sample_q(self, x, t):
         # Eq. 4 in the DDPM paper (Ho et al. 2020) after reparametrization
         # noisy images at time step t xt = x* sqrt(apha_bar) + sqrt(1-alpha_bar) * e
         # with e ~ N(0, I).
@@ -58,7 +58,7 @@ class Diffusion:
         q_t = q_mean + q_std * e
         return q_t, e
 
-    def sample_timesteps(self, n):
+    def _sample_timesteps(self, n):
         # return random integers between 1 and noise_steps of size n
         return torch.randint(low=1, high=self.noise_steps, size=(n,))
 
@@ -72,9 +72,9 @@ class Diffusion:
         # Step 2, Algorithm 1: sample image x0 ~q(x0)
         x_0 = image.to(self.device)
         # Step 3, Algorithm 1: generate random timesteps
-        t = self.sample_timesteps(x_0.shape[0]).to(self.device)
+        t = self._sample_timesteps(x_0.shape[0]).to(self.device)
         # Step 4, Algorithm 1: sample noise for each timestep (epsilon)
-        x_t, epsilon = self.sample_q(x_0, t)
+        x_t, epsilon = self._sample_q(x_0, t)
 
         # Step 5, Algorithm 1: Take gradient descent step on
         # predict noise
