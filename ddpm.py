@@ -5,17 +5,15 @@ from pathlib import Path
 import torch
 from torch import optim
 from tqdm import tqdm
+import logging
+from torch.utils.tensorboard import SummaryWriter
 
 from utils import setup_logging_dirs
 from utils import get_mnist_data
 from utils import save_images
 from utils import transform_sampled_image
-
 from ddpm_unet import LightweightUNet
 
-
-import logging
-from torch.utils.tensorboard import SummaryWriter
 
 # %% Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S")
@@ -101,11 +99,11 @@ class Diffusion:
         sample_images = []
 
         for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
-
+            # Step 3, Algorithm 2: sample noise for next time step
             # timestep encoding
             t = (torch.ones(n) * i).long().to(self.device)
 
-            # Forward Pass (predict noise for current time step)
+            # Forward Pass (predict noise for gcurrent time step)
             predicted_noise = model(x_t, t)
 
             # get alpha and beta for current time step
@@ -113,38 +111,25 @@ class Diffusion:
             alpha_bar = self.alpha_bar[t][:, None, None, None]
             beta = self.beta[t][:, None, None, None]
 
-            # Step 3, Algorithm 2: sample noise for next time step
+            # Step 3, Algortihm 2: sample noise for next time step
             if i > 1:
-                # timestep encoding
-                t = (torch.ones(n) * i).long().to(self.device)
+                z_noise = torch.randn_like(x_t)
+            else:
+                # last step, add no noise, otherwise it would get worse
+                z_noise = torch.zeros_like(x_t)
 
-                # Forward Pass (predict noise for current time step)
-                predicted_noise = model(x_t, t)
+            # Step 4, Algortihm 2: update x_t-1 (remove a little bit of noise)
+            x_t_minus_1 = (
+                1 / torch.sqrt(alpha) * (x_t - ((1 - alpha) / (torch.sqrt(1 - alpha_bar))) * predicted_noise)
+                + torch.sqrt(beta) * z_noise
+            )
 
-                # get alpha and beta for current time step
-                alpha = self.alpha[t][:, None, None, None]
-                alpha_bar = self.alpha_bar[t][:, None, None, None]
-                beta = self.beta[t][:, None, None, None]
+            # update x_t for next iteration
+            x_t = x_t_minus_1
 
-                # Step 3, Algortihm 2: sample noise for next time step
-                if i > 1:
-                    z_noise = torch.randn_like(x_t)
-                else:
-                    # last step, add no noise, otherwise it would get worse
-                    z_noise = torch.zeros_like(x_t)
-
-                # Step 4, Algortihm 2: update x_t-1 (remove a little bit of noise)
-                x_t_minus_1 = (
-                    1 / torch.sqrt(alpha) * (x_t - ((1 - alpha) / (torch.sqrt(1 - alpha_bar))) * predicted_noise)
-                    + torch.sqrt(beta) * z_noise
-                )
-
-                # update x_t for next iteration
-                x_t = x_t_minus_1
-
-                # save sampled images if requested:
-                if i in t_sample_times:
-                    sample_images.append(x_t)
+            # save sampled images if requested:
+            if i in t_sample_times:
+                sample_images.append(x_t)
 
             # after last iteration:
             model.train()
