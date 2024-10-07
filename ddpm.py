@@ -86,56 +86,56 @@ class Diffusion:
         return loss
 
     @torch.no_grad()
-    def sample(self, model, n, t_sample_times=None):
+    def sample_step(self, model, x_t, t):
+        # Step 3, Algorithm 2: sample noise for next time step
+        # Forward Pass (predict noise for current time step)
+        predicted_noise = model(x_t, t)
+
+        # get alpha and beta for current time step
+        alpha = self.alpha[t][:, None, None, None]
+        alpha_bar = self.alpha_bar[t][:, None, None, None]
+        beta = self.beta[t][:, None, None, None]
+
+        # Step 3, Algorithm 2: sample noise for next time step
+        if t[0] > 1:
+            z_noise = torch.randn_like(x_t)
+        else:
+            # last step, add no noise, otherwise it would get worse
+            z_noise = torch.zeros_like(x_t)
+
+        # Step 4, Algorithm 2: update x_t-1 (remove a little bit of noise)
+        x_t_minus_1 = (
+            1 / torch.sqrt(alpha) * (x_t - ((1 - alpha) / (torch.sqrt(1 - alpha_bar))) * predicted_noise)
+            + torch.sqrt(beta) * z_noise
+        )
+
+        return x_t_minus_1
+
+    def sample(self, model, t_sample_times=None):
         # Following Algorithm 2 in the DDPM paper
-        logging.info(f"Sampling {n} new images")
         model.eval()
         # Step 1, Algorithm 2:
         # start with random noise (x_T)
-        x_t = torch.randn(n, 1, self.img_size, self.img_size, device=self.device)
+        x_t = torch.randn(1, 1, self.img_size, self.img_size, device=self.device)
 
         # Step 2, Algorithm 2: go over all time steps in reverse order (from noise to image)
-
         sample_images = []
 
         for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
-            # Step 3, Algorithm 2: sample noise for next time step
             # timestep encoding
-            t = (torch.ones(n) * i).long().to(self.device)
+            t = (torch.ones(1) * i).long().to(self.device)
 
-            # Forward Pass (predict noise for gcurrent time step)
-            predicted_noise = model(x_t, t)
-
-            # get alpha and beta for current time step
-            alpha = self.alpha[t][:, None, None, None]
-            alpha_bar = self.alpha_bar[t][:, None, None, None]
-            beta = self.beta[t][:, None, None, None]
-
-            # Step 3, Algortihm 2: sample noise for next time step
-            if i > 1:
-                z_noise = torch.randn_like(x_t)
-            else:
-                # last step, add no noise, otherwise it would get worse
-                z_noise = torch.zeros_like(x_t)
-
-            # Step 4, Algortihm 2: update x_t-1 (remove a little bit of noise)
-            x_t_minus_1 = (
-                1 / torch.sqrt(alpha) * (x_t - ((1 - alpha) / (torch.sqrt(1 - alpha_bar))) * predicted_noise)
-                + torch.sqrt(beta) * z_noise
-            )
-
-            # update x_t for next iteration
-            x_t = x_t_minus_1
+            # Perform a sampling step
+            x_t = self.sample_step(model, x_t, t)
 
             # save sampled images if requested:
-            if i in t_sample_times:
+            if t_sample_times and i in t_sample_times:
                 sample_images.append(x_t)
 
-            # after last iteration:
-            model.train()
+        model.train()
 
-            rescaled_images = [transform_sampled_image(image) for image in sample_images]
-            return rescaled_images
+        rescaled_images = [transform_sampled_image(image) for image in sample_images]
+        return rescaled_images
 
 
 def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
@@ -172,13 +172,17 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
         torch.save(model.state_dict(), os.path.join("models", run_name, f"model_{epoch}.pt"))
 
         # sample some images and log them
-        sampled_images = diffusion.sample(model, n=16, t_sample_times=[1, 50, 100, 150, 200, 600, 800, 999])
-        sampled_digits = [sampled_images_diffusion[0] for sampled_images_diffusion in sampled_images]
-        save_images(sampled_digits, os.path.join("results", run_name, f"diffusion_steps_{epoch}.png"))
-        save_images(sampled_images[0], os.path.join("results", run_name, f"sampled_images_{epoch}.png"))
+        t_sample_times = [1, 50, 100, 150, 200, 600, 800, 999]
+        sampled_diffusion_steps = diffusion.sample(model, t_sample_times=t_sample_times)
+        save_images(sampled_diffusion_steps, os.path.join("results", run_name, f"diffusion_steps_{epoch}.png"))
+        sampled_images = []
+        for i in range(16):
+            sampled_images.append(diffusion.sample(model, t_sample_times=[1])[t_sample_times[-1]])
+        save_images(sampled_images, os.path.join("results", run_name, f"sampled_images_{epoch}.png"))
 
 
-def sample(model_path, run_name, device, image_size, n_samples=16, t_sample_times=None):
+def sample(model_path, run_name, device, image_size, t_sample_times=None):
+    logging.info(f"Starting sampling at time points {t_sample_times}")
     # function to sample from a trained model
     # 1. initialize diffusion model
     diffusion = Diffusion(img_size=image_size, device=device)  # Assuming image size is 28 for MNIST
@@ -193,12 +197,10 @@ def sample(model_path, run_name, device, image_size, n_samples=16, t_sample_time
     model.eval()
 
     # 4. generate samples
-    sampled_images = diffusion.sample(model, n=n_samples, t_sample_times=t_sample_times)
+    sampled_digits = diffusion.sample(model, t_sample_times=t_sample_times)
 
     # 5. save generated samples
-    sampled_digits = [sampled_images_diffusion[0] for sampled_images_diffusion in sampled_images]
     save_images(sampled_digits, os.path.join("results", run_name, f"diffusion_steps.png"))
-    save_images(sampled_images[0], os.path.join("results", run_name, f"sampled_images.png"))
 
 
 def launch():
@@ -206,7 +208,7 @@ def launch():
 
     # Example usage:
     # python ddpm.py --run_name "ddpm_run" --device "cpu" --image_size 28 train --epochs 1 --lr 0.001 --batch_size 1 --dataset_path "data"
-    # python ddpm.py --run_name "ddpm_run" --device "cpu" --image_size 28 sample --model_path "./models/ddpm_run/model_0.pt" --n_samples 16
+    # python ddpm.py --run_name "ddpm_run" --device "cpu" --image_size 28 sample --model_path "./models/ddpm_run/model_0.pt" --t_sample_times 999 1
 
     parser = argparse.ArgumentParser(description="DDPM CLI")
     subparsers = parser.add_subparsers(dest="command", help="Sub-commands: train or sample")
@@ -255,11 +257,11 @@ def launch():
             run_name=args.run_name,
             device=args.device,
             model_path=args.model_path,
-            n_samples=args.n_samples,
             t_sample_times=args.t_sample_times,
         )
 
 
+# %%
 if __name__ == "__main__":
     torch.cuda.empty_cache()
     launch()

@@ -1,6 +1,7 @@
 import os
 import torch
 import torchvision
+import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
@@ -22,10 +23,9 @@ def plot_images(images):
 
 
 def save_images(images, path, **kwargs):
-    grid = torchvision.utils.make_grid(images, **kwargs)
-    ndarr = grid.permute(1, 2, 0).to("cpu").numpy()
-    im = Image.fromarray(ndarr)
-    im.save(path)
+    images_np_array = np.concatenate([image.cpu().numpy().squeeze() for image in images], axis=1)
+    img = Image.fromarray(images_np_array)
+    img.save(path)
 
 
 def get_mnist_data(image_size, batch_size, data_path):
