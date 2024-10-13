@@ -184,7 +184,7 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
     logger.close()
     # plot tensorboard data
     scalar_names = ['Training Loss']
-    plot_tensorboard_data(log_dir, scalar_names)
+    plot_tensorboard_data(log_dir, scalar_names, os.path.join("results", run_name))
 
 def sample(model_path, run_name, device, image_size, t_sample_times=None):
     logging.info(f"Starting sampling at time points {t_sample_times}")

@@ -65,7 +65,7 @@ def load_tensorboard_data(path, scalar_name):
     
     return steps, values
 
-def plot_tensorboard_data(log_dir, scalar_names):
+def plot_tensorboard_data(log_dir, scalar_names, result_dir):
     plt.figure(figsize=(10, 6))
     
     for scalar_name in scalar_names:
@@ -78,3 +78,4 @@ def plot_tensorboard_data(log_dir, scalar_names):
     plt.legend()
     plt.grid(True)
     plt.show()
+    plt.savefig(os.path.join(result_dir, 'training_loss.png'))
