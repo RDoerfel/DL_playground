@@ -7,6 +7,8 @@ from torch import optim
 from tqdm import tqdm
 import logging
 from torch.utils.tensorboard import SummaryWriter
+from torch.cuda.amp import autocast, GradScaler
+
 from carbontracker.tracker import CarbonTracker
 from carbontracker import parser
 
@@ -151,10 +153,17 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
     diffusion = Diffusion(img_size=image_size, device=device)
     log_dir=os.path.join("runs", run_name)
     logger = SummaryWriter(log_dir=log_dir)
-    length = len(data_loader)
 
+    # setup carbontracker
     carbon_logdir = os.path.join("carbontracker_logs")
     tracker = CarbonTracker(epochs=epochs, log_dir=carbon_logdir, log_file_prefix=run_name, monitor_epochs=-1, epochs_before_pred=0)
+
+    # setup gradient scaler
+    scaler = GradScaler()
+    # 
+
+
+    length = len(data_loader)
 
     # itereate over epochs
     for epoch in range(epochs):
@@ -164,14 +173,20 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
         pbar = tqdm(data_loader, position=0)
 
         for i, (image, _) in enumerate(pbar):
-
-            # perform diffusion step
-            loss = diffusion.perform_training_step(model, image)
-
             # optimization step
             optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+
+            # use autocast to enable mixed precision training
+            with autocast():
+                # perform diffusion step
+                loss = diffusion.perform_training_step(model, image)                
+
+            # scale loss and perform backpropagation
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+
+            # update scaler
+            scaler.update()
 
             # logging
             pbar.set_postfix({"Loss": loss.item()})
