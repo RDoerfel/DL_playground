@@ -7,11 +7,14 @@ from torch import optim
 from tqdm import tqdm
 import logging
 from torch.utils.tensorboard import SummaryWriter
+from carbontracker.tracker import CarbonTracker
+from carbontracker import parser
 
 from utils import setup_logging_dirs
 from utils import get_mnist_data
 from utils import save_images
 from utils import transform_sampled_image
+from utils import plot_tensorboard_data
 from ddpm_unet import LightweightUNet
 
 
@@ -150,9 +153,14 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
     logger = SummaryWriter(log_dir=log_dir)
     length = len(data_loader)
 
+    carbon_logdir = os.path.join("carbontracker_logs")
+    tracker = CarbonTracker(epochs=epochs, log_dir=carbon_logdir, log_file_prefix=run_name, monitor_epochs=-1, epochs_before_pred=0)
+
     # itereate over epochs
     for epoch in range(epochs):
         logging.info(f"Starting Epoch {epoch}")
+        tracker.epoch_start()
+
         pbar = tqdm(data_loader, position=0)
 
         for i, (image, _) in enumerate(pbar):
@@ -173,17 +181,18 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
         torch.save(model.state_dict(), os.path.join("models", run_name, f"model_{epoch}.pt"))
 
         # sample some images and log them
-        t_sample_times = [1, 50, 100, 150, 200, 600, 800, 999]
+        t_sample_times = [1, 50, 100, 150, 200, 300, 500, 999]
         sampled_diffusion_steps = diffusion.sample(model, t_sample_times=t_sample_times)
         save_images(sampled_diffusion_steps, os.path.join("results", run_name, f"diffusion_steps_{epoch}.png"))
         sampled_images = []
         for i in range(8):
             sampled_images.append(diffusion.sample(model, t_sample_times=[1])[0])
         save_images(sampled_images, os.path.join("results", run_name, f"sampled_images_{epoch}.png"))
-
+        tracker.epoch_end()
     logger.close()
+    tracker.stop()
     # plot tensorboard data
-    scalar_names = ['Training Loss']
+    scalar_names = ['Loss']
     plot_tensorboard_data(log_dir, scalar_names, os.path.join("results", run_name))
 
 def sample(model_path, run_name, device, image_size, t_sample_times=None):

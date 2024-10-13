@@ -48,6 +48,8 @@ def transform_sampled_image(image):
 def setup_logging_dirs(run_name):
     os.makedirs("models", exist_ok=True)
     os.makedirs("results", exist_ok=True)
+    os.makedirs("carbontracker_logs", exist_ok=True)
+    os.makedirs("runs", exist_ok=True)
     os.makedirs(os.path.join("models", run_name), exist_ok=True)
     os.makedirs(os.path.join("results", run_name), exist_ok=True)
 
@@ -74,7 +76,7 @@ def plot_tensorboard_data(log_dir, scalar_names, result_dir):
     
     plt.xlabel('Steps')
     plt.ylabel('Loss')
-    plt.title('Training and Validation Loss')
+    plt.title('Training Loss')
     plt.legend()
     plt.grid(True)
     plt.show()
