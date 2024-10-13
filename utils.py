@@ -29,12 +29,9 @@ def save_images(images, path, **kwargs):
 
 
 def get_mnist_data(image_size, batch_size, data_path):
-    thresshold = 0.5
-    transform = torchvision.transforms.Compose(
-        [torchvision.transforms.ToTensor(), 
-        torchvision.transforms.Lambda(
-            lambda x: (thresshold < x).float().squeeze())
-        ]
+    transform = torchvision.transforms.Compose([
+    torchvision.transforms.ToTensor(),
+    torchvision.transforms.Lambda(lambda x: (x - 0.5) * 2)]
     )
     dataset = torchvision.datasets.MNIST(root=data_path, train=True, transform=transform, download=True)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
