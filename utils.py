@@ -36,7 +36,7 @@ def get_mnist_data(image_size, batch_size, data_path):
             lambda x: (thresshold < x).float().squeeze())
         ]
     )
-    dataset = torchvision.datasets.MNIST(root=data_path, train=True, transform=transforms, download=True)
+    dataset = torchvision.datasets.MNIST(root=data_path, train=True, transform=transform, download=True)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     return dataloader
 
