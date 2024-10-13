@@ -176,7 +176,7 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
         sampled_diffusion_steps = diffusion.sample(model, t_sample_times=t_sample_times)
         save_images(sampled_diffusion_steps, os.path.join("results", run_name, f"diffusion_steps_{epoch}.png"))
         sampled_images = []
-        for i in range(16):
+        for i in range(8):
             sampled_images.append(diffusion.sample(model, t_sample_times=[1])[0])
         save_images(sampled_images, os.path.join("results", run_name, f"sampled_images_{epoch}.png"))
 
