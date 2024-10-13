@@ -29,11 +29,11 @@ def save_images(images, path, **kwargs):
 
 
 def get_mnist_data(image_size, batch_size, data_path):
-    transforms = torchvision.transforms.Compose(
-        [
-            torchvision.transforms.Resize(image_size + int(0.25 * image_size)),
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize((0.1307,), (0.3081,)),
+    thresshold = 0.5
+    transform = torchvision.transforms.Compose(
+        [torchvision.transforms.ToTensor(), 
+        torchvision.transforms.Lambda(
+            lambda x: (thresshold < x).float().squeeze())
         ]
     )
     dataset = torchvision.datasets.MNIST(root=data_path, train=True, transform=transforms, download=True)
@@ -42,8 +42,8 @@ def get_mnist_data(image_size, batch_size, data_path):
 
 
 def transform_sampled_image(image):
-    image = (image.clamp(-1, 1) + 1) / 2  # rescale to [0, 1]
-    image = (image * 255).type(torch.uint8)  # rescale to [0, 255]
+    # image = (image.clamp(-1, 1) + 1) / 2  # rescale to [0, 1]
+    # image = (image * 255).type(torch.uint8)  # rescale to [0, 255]
     return image
 
 
