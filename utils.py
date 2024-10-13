@@ -39,8 +39,8 @@ def get_mnist_data(image_size, batch_size, data_path):
 
 
 def transform_sampled_image(image):
-    # image = (image.clamp(-1, 1) + 1) / 2  # rescale to [0, 1]
-    # image = (image * 255).type(torch.uint8)  # rescale to [0, 255]
+    image = (image.clamp(-1, 1) + 1) / 2  # rescale to [0, 1]
+    image = (image * 255).type(torch.uint8)  # rescale to [0, 255]
     return image
 
 
