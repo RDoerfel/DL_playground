@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 
 def plot_images(images):
@@ -49,3 +50,31 @@ def setup_logging_dirs(run_name):
     os.makedirs("results", exist_ok=True)
     os.makedirs(os.path.join("models", run_name), exist_ok=True)
     os.makedirs(os.path.join("results", run_name), exist_ok=True)
+
+
+def load_tensorboard_data(path, scalar_name):
+    event_acc = EventAccumulator(path)
+    event_acc.Reload()
+    
+    # Get all scalar events
+    events = event_acc.Scalars(scalar_name)
+    
+    # Extract steps and values
+    steps = [event.step for event in events]
+    values = [event.value for event in events]
+    
+    return steps, values
+
+def plot_tensorboard_data(log_dir, scalar_names):
+    plt.figure(figsize=(10, 6))
+    
+    for scalar_name in scalar_names:
+        steps, values = load_tensorboard_data(log_dir, scalar_name)
+        plt.plot(steps, values, label=scalar_name)
+    
+    plt.xlabel('Steps')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.show()

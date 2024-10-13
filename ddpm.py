@@ -146,7 +146,8 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
     model = LightweightUNet().to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     diffusion = Diffusion(img_size=image_size, device=device)
-    logger = SummaryWriter(log_dir=os.path.join("runs", run_name))
+    log_dir=os.path.join("runs", run_name)
+    logger = SummaryWriter(log_dir=log_dir)
     length = len(data_loader)
 
     # itereate over epochs
@@ -180,6 +181,10 @@ def train(run_name, device, epochs, lr, batch_size, image_size, dataset_path):
             sampled_images.append(diffusion.sample(model, t_sample_times=[1])[0])
         save_images(sampled_images, os.path.join("results", run_name, f"sampled_images_{epoch}.png"))
 
+    logger.close()
+    # plot tensorboard data
+    scalar_names = ['Training Loss']
+    plot_tensorboard_data(log_dir, scalar_names)
 
 def sample(model_path, run_name, device, image_size, t_sample_times=None):
     logging.info(f"Starting sampling at time points {t_sample_times}")
